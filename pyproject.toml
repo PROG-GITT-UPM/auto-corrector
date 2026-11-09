@@ -3,18 +3,18 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "corrector"
+name = "grader"
 version = "0.1.0"
-description = "Corrector automático de prácticas de Python para Classroom 50, en servidores propios"
+description = "Automatic grader for Python assignments on Classroom 50, running on our own servers"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []          # solo biblioteca estándar
+dependencies = []          # standard library only
 
 [project.optional-dependencies]
-desarrollo = ["pytest>=8", "jsonschema>=4"]
+dev = ["pytest>=8", "jsonschema>=4"]
 
 [project.scripts]
-corrector = "corrector.cli:main"
+grader = "grader.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
