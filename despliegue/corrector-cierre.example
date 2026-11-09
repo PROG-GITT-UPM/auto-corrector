@@ -1,0 +1,5 @@
+# Modo por lotes: corregir lo entregado en plazo al cerrar un laboratorio y salir.
+# Ejemplo de crontab del usuario corrector (crontab -e). Las variables salen de secretos.env.
+#
+# Lunes a las 00:30: lab 2, último commit anterior al domingo 23:59 (hora peninsular, UTC+1 en invierno)
+30 0 * * 1  set -a; . /etc/corrector/secretos.env; set +a; /opt/corrector/venv/bin/corrector corregir -c /etc/corrector/corrector.toml grupo-test/lab-02-prueba --todos --hasta 2026-11-15T22:59:00Z >> /var/lib/corrector/cierres.log 2>&1

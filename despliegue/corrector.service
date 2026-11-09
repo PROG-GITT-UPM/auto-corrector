@@ -1,0 +1,32 @@
+# Servicio de systemd para el corrector siempre encendido.
+#   sudo cp despliegue/corrector.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now corrector
+#   journalctl -u corrector -f
+[Unit]
+Description=Corrector de prácticas (Classroom 50)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=corrector
+Group=corrector
+# El usuario corrector debe estar en el grupo docker para lanzar los contenedores.
+SupplementaryGroups=docker
+WorkingDirectory=/etc/corrector
+# GITHUB_TOKEN=... y CORRECTOR_API_TOKEN=..., con permisos 600 y dueño corrector.
+EnvironmentFile=/etc/corrector/secretos.env
+ExecStart=/opt/corrector/venv/bin/corrector servir -c /etc/corrector/corrector.toml
+Restart=on-failure
+RestartSec=10
+# Al parar, el corrector guarda las notas pendientes antes de salir.
+TimeoutStopSec=60
+StateDirectory=corrector
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/corrector
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

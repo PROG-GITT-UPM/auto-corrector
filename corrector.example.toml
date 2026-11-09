@@ -1,0 +1,36 @@
+# Configuración del corrector. Cópiala a /etc/corrector/corrector.toml y ajústala.
+# Los secretos NO van aquí: van en variables de entorno (ver secretos.env en el README).
+
+[github]
+organizacion = "PROG-GITT-UPM"
+token_env = "GITHUB_TOKEN"        # variable con el token (permisos en el README)
+repo_config = "classroom50"       # repositorio de configuración de Classroom 50
+
+[sandbox]
+tipo = "docker"                   # "docker" en el servidor; "local" solo para desarrollo
+imagen = "corrector-sandbox:3.12" # docker build -t corrector-sandbox:3.12 sandbox/
+memoria = "256m"
+cpus = "1"
+procesos = 128
+# Con tipo = "local" hay que poner además inseguro = true: el código de los alumnos se ejecutaría
+# en el servidor sin aislar.
+
+[trabajo]
+carpeta = "/var/lib/corrector"    # plantillas descargadas, entregas temporales y estado
+
+[servicio]
+anfitrion = "127.0.0.1"           # sin token de API solo se admite 127.0.0.1
+puerto = 8080
+api_token_env = "CORRECTOR_API_TOKEN"
+trabajadores = 2                  # correcciones a la vez (cada una en su contenedor)
+guardar_cada = 60                 # segundos entre escrituras de notas en Classroom 50
+vigilar_cada = 120                # segundos entre vueltas de vigilancia (0 = sin vigilancia)
+vigilar = ["grupo-test/lab-02-prueba"]   # tareas que se corrigen solas tras cada push
+
+# Una sección por tarea de Classroom 50: "clase/tarea".
+[tareas."grupo-test/lab-02-prueba"]
+plantilla = "PROG-GITT-UPM/prog-lab-02"  # repositorio de la práctica: de aquí salen las pruebas
+ref = "main"
+publicar_release = true           # Release con el resultado en el repositorio del alumno
+guardar_nota = true               # nota en scores.json (la ve la web de Classroom 50)
+# pruebas_extra = "ocultas/lab-02.json"  # pruebas que el alumno no ve (relativo a este fichero)

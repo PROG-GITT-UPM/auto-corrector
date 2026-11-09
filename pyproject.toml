@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "corrector"
+version = "0.1.0"
+description = "Corrector automático de prácticas de Python para Classroom 50, en servidores propios"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []          # solo biblioteca estándar
+
+[project.optional-dependencies]
+desarrollo = ["pytest>=8", "jsonschema>=4"]
+
+[project.scripts]
+corrector = "corrector.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]
