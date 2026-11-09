@@ -1,216 +1,219 @@
-# Corrector de prácticas para Classroom 50
+# auto-grader
 
-Corrige las prácticas de Python en servidores propios y deja la nota en Classroom 50 sin usar
-GitHub Actions.
+Grades the course's Python assignments on our own servers and records the score in Classroom 50
+without using GitHub Actions.
 
-GitHub solo guarda los repositorios. Classroom 50 sigue siendo la interfaz: inscripción,
-aceptación de la tarea, página de entregas y exportación de notas. La ejecución del código de los
-alumnos ocurre aquí.
+GitHub only stores the repositories. Classroom 50 is still the interface: enrollment, accepting
+the assignment, the submissions page and the score export. Student code runs here.
 
 ```
-alumno ── push ──▶ repo del alumno (sin workflows: no gasta minutos)
+student ── push ──▶ student repo (no workflows: spends no minutes)
                           │
-              grader ◀────┘  (descarga el commit por la API)
+              grader ◀────┘  (downloads the commit through the API)
                │
-               ├─ ejecuta las pruebas de la plantilla en un contenedor sin red
-               ├─▶ Release «Grading: 7/9» en el repo del alumno (lo que ve el alumno)
-               └─▶ nota en classroom50/<clase>/scores.json (lo que ve Classroom 50)
+               ├─ runs the template's tests in a container without network
+               ├─▶ Release "Grading: 7/9" in the student repo (what the student sees)
+               └─▶ score in classroom50/<classroom>/scores.json (what Classroom 50 sees)
 ```
 
-El paquete y la orden se llaman `grader`. El código, los comentarios y los mensajes que ve el
-alumno (el Release y `check.py`) están en inglés.
+The repository is called `auto-grader`; the Python package and the command are called `grader`.
 
-## Cómo encaja con Classroom 50
+> **Keep this repository private.** `tests/fixtures/lab_02/solution/` holds the reference
+> solutions of lab 2, and any hidden tests you add later would be visible too.
 
-La tarea se crea en Classroom 50 con dos opciones:
+Conventions for working on this repository (language, naming, keeping the engine in sync) are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-- **Grading: Manual**, con los puntos de la práctica.
-- **Do not use the built-in autograder** (`no_autograder`). Con ella el repositorio del alumno es
-  una copia exacta de la plantilla, sin workflows, y los push no lanzan nada en Actions.
+## How it fits with Classroom 50
 
-La nota que escribe el corrector es la misma que escribe la web cuando un profesor pone una nota a
-mano: una entrada con `"override": true` en `scores.json`, copiada del código de la web
-(`web/src/domain/assignments/scoreOverride.ts`). Por eso aparece en la página de entregas y en el
-CSV de «Download scores», y el recolector de notas de Classroom 50 no la toca.
+The assignment is created in Classroom 50 with two options:
 
-Dos detalles que importan:
+- **Grading: Manual**, with the assignment's points.
+- **Do not use the built-in autograder** (`no_autograder`). The student repository is then an exact
+  copy of the template, without workflows, and pushes trigger nothing in Actions.
 
-- **`[skip ci]` en cada commit de notas.** Cada commit en el repositorio `classroom50` lanza su
-  workflow `publish-pages`, que sí gasta minutos. El corrector agrupa las notas en un commit por
-  clase y lleva `[skip ci]` en el mensaje. Cuidado: poner notas a mano en la web sí lanza ese
-  workflow en cada nota.
-- **Notas manuales del profesor.** Si un profesor pone una nota a mano en la web, el corrector no
-  la pisa al volver a corregir; avisa en el registro. Con `--force` sí la pisa.
+The score the grader writes is the same one the web writes when a teacher enters a score by hand:
+an entry with `"override": true` in `scores.json`, modelled on the web's code
+(`web/src/domain/assignments/scoreOverride.ts`). That is why it shows up on the submissions page
+and in the "Download scores" CSV, and why the Classroom 50 score collector leaves it alone.
 
-Las notas del corrector se reconocen por el prefijo `submit/manual-grader-`. Las que escribieron
-versiones anteriores (`submit/manual-corrector-`) también se tratan como suyas, no como notas del
-profesor.
+Two details that matter:
 
-Comprobado contra el código de Classroom 50 del 5 de noviembre de 2026 (commit `b6d81a4`). Si
-Classroom 50 cambia el formato de `scores.json`, hay que revisar `publish.py`.
+- **`[skip ci]` on every score commit.** Every commit to the `classroom50` repository triggers its
+  `publish-pages` workflow, which does spend minutes. The grader batches scores into one commit
+  per classroom with `[skip ci]` in the message. Note that entering scores by hand on the web
+  does trigger that workflow, once per score.
+- **Manual scores from teachers.** If a teacher enters a score by hand on the web, the grader does
+  not overwrite it when grading again; it logs a warning. `--force` overwrites it.
 
-## Instalación en el servidor
+The grader's scores are recognised by the `submit/manual-grader-` prefix. Scores written by the
+first, Spanish version (`submit/manual-corrector-`) are also treated as the grader's own, not as
+a teacher's.
 
-Hace falta Linux con Docker y Python 3.11 o posterior. El corrector solo usa la biblioteca
-estándar.
+Checked against the Classroom 50 code of 5 November 2026 (commit `b6d81a4`). If Classroom 50
+changes the format of `scores.json`, review `publish.py`.
+
+## Installing on the server
+
+Requires Linux with Docker and Python 3.11 or later. The grader only uses the standard library.
 
 ```bash
 sudo useradd --system --home /var/lib/grader --groups docker grader
 sudo python3 -m venv /opt/grader/venv
-sudo /opt/grader/venv/bin/pip install /ruta/a/auto-corrector
-docker build -t grader-sandbox:3.12 sandbox/      # imagen donde corre el código de alumnos
+sudo /opt/grader/venv/bin/pip install /path/to/auto-grader
+docker build -t grader-sandbox:3.12 sandbox/      # image in which student code runs
 
 sudo mkdir -p /etc/grader
-sudo cp grader.example.toml /etc/grader/grader.toml   # y ajustarlo
+sudo cp grader.example.toml /etc/grader/grader.toml   # then adjust it
 sudo install -m 600 -o grader /dev/null /etc/grader/secrets.env
 ```
 
-Contenido de `/etc/grader/secrets.env`:
+Contents of `/etc/grader/secrets.env`:
 
 ```
 GITHUB_TOKEN=github_pat_...
-GRADER_API_TOKEN=una-cadena-larga-y-aleatoria
+GRADER_API_TOKEN=a-long-random-string
 ```
 
-### El token de GitHub
+### The GitHub token
 
-Un token *fine-grained* con estas características:
+A *fine-grained* token with:
 
-- **Propietario (resource owner):** la organización.
-- **Repositorios:** todos (los de alumno se crean sobre la marcha).
-- **Permisos:**
-  - **Contents: Read and write**, para descargar código, crear Releases y escribir `scores.json`.
+- **Resource owner:** the organization.
+- **Repositories:** all of them (student repositories are created on the fly).
+- **Permissions:**
+  - **Contents: Read and write**, to download code, create Releases and write `scores.json`.
   - **Metadata: Read**.
 
-El token caduca. Anota la fecha y renuévalo antes del cuatrimestre.
+The token expires. Write the date down and renew it before the semester starts.
 
-## Uso
+## Usage
 
-### Por lotes: corregir y salir
+### Batch: grade and exit
 
 ```bash
 grader grade -c grader.toml grupo-test/lab-02-prueba ana luis
 grader grade -c grader.toml grupo-test/lab-02-prueba --all
 grader grade -c grader.toml grupo-test/lab-02-prueba --all --until 2026-11-15T22:59:00Z
-grader grade -c grader.toml grupo-test/lab-02-prueba ana --no-publish   # solo mirar
+grader grade -c grader.toml grupo-test/lab-02-prueba ana --no-publish   # just look
 ```
 
-- **`--until`** corrige el último commit anterior a esa fecha: lo entregado en plazo.
-- **Correcciones repetidas:** si un commit ya está corregido con las mismas pruebas, no se repite,
-  salvo con `--force`. Si cambias las pruebas de la plantilla, las entregas se vuelven a corregir.
+- **`--until`** grades the latest commit before that date: what was submitted on time.
+- **Repeated runs:** a commit already graded with the same tests is not graded again, unless
+  `--force` is given. If you change the template's tests, submissions are graded again.
 
-Para el cierre de cada laboratorio hay un ejemplo de cron en `deploy/grader-deadline.example`.
+`deploy/grader-deadline.example` has a cron example for closing each lab.
 
-### Como servicio
+### As a service
 
 ```bash
-grader serve -c grader.toml        # o con systemd: deploy/grader.service
+grader serve -c grader.toml        # or with systemd: deploy/grader.service
 ```
 
-Con `watch` en la configuración, cada `watch_every` segundos el servicio mira qué repositorios
-de esas tareas han recibido un push y los corrige. Es una sola consulta a la API por vuelta y no
-hace falta que GitHub pueda llegar al servidor.
+With `watch` in the configuration, every `watch_every` seconds the service checks which
+repositories of those assignments have received a push and grades them. It is a single API query
+per round, and GitHub does not need to be able to reach the server.
 
-La API lleva el token de `GRADER_API_TOKEN` en la cabecera `Authorization: Bearer …`:
+The API expects the `GRADER_API_TOKEN` token in the `Authorization: Bearer …` header:
 
-| Petición | Qué hace |
+| Request | What it does |
 |---|---|
-| `GET /health` | Estado: trabajos en cola y notas pendientes. No pide token. |
-| `POST /grade` | Cuerpo `{"classroom", "assignment", "students"?, "force"?, "until"?}`. Sin `students`, corrige a todos. Responde con los identificadores de los trabajos. |
-| `GET /jobs` | Los últimos 100 trabajos. |
-| `GET /jobs/<id>` | Estado y resumen de un trabajo. |
-| `POST /watch` | Una vuelta de vigilancia ahora mismo. |
+| `GET /health` | Status: queued jobs and pending scores. No token needed. |
+| `POST /grade` | Body `{"classroom", "assignment", "students"?, "force"?, "until"?}`. Without `students`, grades everyone. Returns the job ids. |
+| `GET /jobs` | The last 100 jobs. |
+| `GET /jobs/<id>` | Status and summary of one job. |
+| `POST /watch` | One watch round right now. |
 
 ```bash
 curl -H "Authorization: Bearer $GRADER_API_TOKEN" -d '{"classroom":"grupo-test","assignment":"lab-02-prueba","students":["ana"]}' http://127.0.0.1:8080/grade
 ```
 
-### Herramientas para preparar prácticas
+### Tools for preparing assignments
 
 ```bash
-grader local ../prog-lab-2 ~/entrega-de-ana                        # corrige una carpeta, sin GitHub
-grader validate-assignment ../prog-lab-2 --solution ~/soluciones/lab-02
-grader sync-engine ../prog-lab-2 ../prog-lab-3                     # tras cambiar engine.py
+grader local ../prog-lab-2 ~/ana-submission                     # grades a folder, no GitHub
+grader validate-assignment ../prog-lab-2 --solution ~/solutions/lab-2
+grader sync-engine ../prog-lab-2 ../prog-lab-3                  # after changing engine.py
 ```
 
-`validate-assignment` comprueba lo siguiente:
+`validate-assignment` checks that:
 
-- las pruebas cargan;
-- no hay workflows en la plantilla;
-- el motor de la práctica (`.grader/engine.py`) es el actual;
-- la plantilla sin tocar saca 0;
-- con la solución de referencia se saca la nota máxima.
+- the tests load;
+- the template has no workflows;
+- the assignment's engine (`.grader/engine.py`) is the current one;
+- the untouched template scores 0;
+- the reference solution gets full marks.
 
-Pásalo siempre antes de publicar una práctica.
+Always run it before publishing an assignment.
 
-## Las pruebas
+## The tests
 
-Cada práctica lleva una carpeta `.grader/` con:
+Every assignment has a `.grader/` folder with:
 
-- `assignment.toml`: tabla `[assignment]` con `tests` (el fichero de pruebas, `tests.json` por
-  defecto) y `protected` (patrones de ficheros que se toman siempre de la plantilla);
-- `tests.json`: las pruebas;
-- `engine.py`: el motor, que usa `check.py` en el ordenador del alumno.
+- `assignment.toml`: an `[assignment]` table with `tests` (the tests file, `tests.json` by
+  default) and `protected` (patterns of files always taken from the template);
+- `tests.json`: the tests;
+- `engine.py`: the engine, which `check.py` uses on the student's computer.
 
-`tests.json` usa el formato de pruebas de Classroom 50: el mismo array de
-`gh teacher assignment add --tests`. Los ficheros de pruebas que ya tenéis generados para los
-laboratorios, las prácticas y los exámenes valen tal cual; solo hay que llamarlos `tests.json`.
+`tests.json` uses the Classroom 50 test format: the same array as
+`gh teacher assignment add --tests`. The test files already generated for the labs, projects and
+exams work as they are; they only need to be called `tests.json`.
 
-`engine.py` reproduce la semántica del corrector de Classroom 50 (`runner.py`):
+`engine.py` reproduces the semantics of the Classroom 50 grader (`runner.py`):
 
-- **`io`:** `included` es una subcadena literal, `exact` compara ignorando los espacios del
-  principio y del final, y `regex` usa `re.search` multilínea.
-- **`run`:** pasa según el código de salida.
-- **`python`:** pytest reparte los puntos por casos superados, con el informe JUnit que trae
-  pytest, sin plugins.
+- **`io`:** `included` is a literal substring, `exact` compares ignoring leading and trailing
+  whitespace, and `regex` uses multiline `re.search`.
+- **`run`:** passes on the exit code.
+- **`python`:** pytest splits the points among the cases that pass, using pytest's built-in
+  JUnit report, no plugins.
 
-Una mejora sobre Classroom 50: cuando una prueba falla, el informe señala la primera línea distinta
-y la columna, con los espacios marcados con `·`.
+One improvement over Classroom 50: when a test fails, the report points out the first line that
+differs and the column, with spaces shown as `·`.
 
-`extra_tests` en la configuración añade pruebas que el alumno no ve. Se guardan en el servidor,
-no en la plantilla.
+`extra_tests` in the configuration adds tests the student does not see. They are kept on the
+server, not in the template.
 
-## Seguridad
+## Security
 
-- **Aislamiento.** Cada entrega se ejecuta en un contenedor nuevo con estas condiciones:
-  - sin red;
-  - sin capacidades ni escalada de privilegios;
-  - sistema de ficheros de solo lectura salvo la carpeta de la entrega y un `/tmp` de 64 MB;
-  - límites de memoria, CPU y número de procesos;
-  - `timeout` en cada orden.
+- **Isolation.** Each submission runs in a new container:
+  - without network;
+  - without capabilities or privilege escalation;
+  - with a read-only file system except for the submission folder and a 64 MB `/tmp`;
+  - with memory, CPU and process limits;
+  - with a `timeout` on each command.
 
-  El contenedor se destruye al terminar.
-- **Descarga segura.** Los tarballs se descomprimen con el filtro `data` de `tarfile` y sin
-  enlaces: una entrega no puede escribir fuera de su carpeta.
-- **Pruebas intocables.** La carpeta `.grader/` y los ficheros `protected` de la práctica se
-  toman siempre de la plantilla. Lo que el alumno cambie ahí no cuenta.
-- **El token nunca entra en el contenedor.**
+  The container is destroyed at the end.
+- **Safe download.** Tarballs are extracted with the `tarfile` `data` filter and without links: a
+  submission cannot write outside its folder.
+- **Untouchable tests.** The `.grader/` folder and the assignment's `protected` files are always
+  taken from the template. Whatever the student changes there does not count.
+- **The token never enters the container.**
 
-## Limitaciones conocidas
+## Known limitations
 
-- **Solo tareas individuales.** Las de grupo dan error.
-- **La fecha de entrega es la del commit.** El alumno puede falsearla. Para un cierre estricto,
-  corrige con `--until` justo al cerrar.
-- **El Release se puede borrar.** Lo crea el corrector, pero el alumno puede borrarlo en su
-  repositorio. La nota que cuenta es la de `scores.json`.
-- **Fallos en la vigilancia.** Si una corrección automática falla (por ejemplo, GitHub no
-  responde), no se reintenta hasta el siguiente push. Mira `GET /jobs` o el registro, y relanza
-  con `POST /grade`.
+- **Individual assignments only.** Group assignments raise an error.
+- **The submission date is the commit date.** Students can fake it. For a strict deadline, grade
+  with `--until` right when it closes.
+- **The Release can be deleted.** The grader creates it, but the student can delete it in their
+  repository. The score that counts is the one in `scores.json`.
+- **Watch failures.** If an automatic grading run fails (for example, GitHub does not respond), it
+  is not retried until the next push. Check `GET /jobs` or the log, and run it again with
+  `POST /grade`.
 
-## Desarrollo
+## Development
 
 ```bash
 pip install -e ".[dev]"
-pytest                                                     # 18 pruebas, sin red ni Docker
-CLASSROOM50_SCHEMAS=~/classroom50/schemas pytest           # valida además contra los esquemas
+pytest                                                     # 18 tests, no network or Docker
+CLASSROOM50_SCHEMAS=~/classroom50/schemas pytest           # also validates against the schemas
 ```
 
-Las pruebas usan un GitHub falso (`tests/fake_github.py`) y una copia de la plantilla del
-laboratorio 2 en `tests/fixtures/lab_02/template/`. Reproducen el piloto del 13 de octubre:
+The tests use a fake GitHub (`tests/fake_github.py`) and a copy of the lab 2 template in
+`tests/fixtures/lab_02/template/`. They reproduce the pilot of 13 October:
 
-| Entrega | Nota |
+| Submission | Score |
 |---|---|
-| Plantilla sin tocar | 0/9 |
-| Ejercicio 1 resuelto | 3/9 |
-| Ejercicio 1 con un espacio de más | 0/9 |
-| Todo resuelto | 9/9 |
+| Untouched template | 0/9 |
+| Exercise 1 solved | 3/9 |
+| Exercise 1 with an extra space | 0/9 |
+| Everything solved | 9/9 |

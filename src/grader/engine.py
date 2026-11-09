@@ -45,10 +45,12 @@ PYTEST_REPORT = ".grader-pytest.xml"
 
 class TestFileError(ValueError):
     """The test file is not valid."""
+    __test__ = False  # not a pytest test class
 
 
 @dataclass
 class TestSpec:
+    __test__ = False  # not a pytest test class
     name: str
     type: str
     run: str
@@ -76,6 +78,7 @@ Runner = Callable[[str, Optional[str], int], Execution]
 
 @dataclass
 class TestResult:
+    __test__ = False  # not a pytest test class
     name: str
     type: str
     passed: bool
