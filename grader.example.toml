@@ -25,10 +25,10 @@ api_token_env = "GRADER_API_TOKEN"
 workers = 2                       # grading runs at a time (each one in its own container)
 save_every = 60                   # seconds between score writes to Classroom 50
 watch_every = 120                 # seconds between watch rounds (0 = no watching)
-watch = ["grupo-test/lab-02-prueba"]   # assignments graded automatically after each push
+watch = ["grupo-test/lab-2"]   # assignments graded automatically after each push
 
 # One section per Classroom 50 assignment: "classroom/assignment".
-[assignments."grupo-test/lab-02-prueba"]
+[assignments."grupo-test/lab-2"]
 template = "PROG-GITT-UPM/prog-lab-2"  # assignment repository: the tests come from here
 ref = "main"
 publish_release = true            # Release with the result in the student's repository

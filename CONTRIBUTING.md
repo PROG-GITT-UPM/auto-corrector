@@ -29,7 +29,7 @@ Two consequences that are easy to miss:
   tells students to create (the `ficheros:` list in the sheet's front matter, which the test
   generator also uses for the `run` commands). If you rename one, rename it in the sheet too.
 - **Data identifiers stay as they are.** Classroom 50 slugs and organization names
-  (`grupo-test`, `lab-02-prueba`) are data, not prose: do not translate them.
+  (`grupo-test`, `lab-2`) are data, not prose: do not translate them.
 
 ## The engine is shared
 

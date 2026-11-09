@@ -2,4 +2,4 @@
 # Example crontab for the grader user (crontab -e). The variables come from secrets.env.
 #
 # Monday at 00:30: lab 2, latest commit before Sunday 23:59 (Spanish mainland time, UTC+1 in winter)
-30 0 * * 1  set -a; . /etc/grader/secrets.env; set +a; /opt/grader/venv/bin/grader grade -c /etc/grader/grader.toml grupo-test/lab-02-prueba --all --until 2026-11-15T22:59:00Z >> /var/lib/grader/deadlines.log 2>&1
+30 0 * * 1  set -a; . /etc/grader/secrets.env; set +a; /opt/grader/venv/bin/grader grade -c /etc/grader/grader.toml grupo-test/lab-2 --all --until 2026-11-15T22:59:00Z >> /var/lib/grader/deadlines.log 2>&1

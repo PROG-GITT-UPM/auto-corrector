@@ -177,7 +177,7 @@ def main(argv: list | None = None) -> int:
 
     g = sub.add_parser("grade", help="grades submissions, publishes the result and saves the score")
     g.add_argument("-c", "--config", type=Path, default=Path("grader.toml"))
-    g.add_argument("assignment", help="classroom/assignment, e.g. grupo-test/lab-02-prueba")
+    g.add_argument("assignment", help="classroom/assignment, e.g. grupo-test/lab-2")
     g.add_argument("students", nargs="*", help="GitHub usernames")
     g.add_argument("--all", action="store_true", help="every student who accepted the assignment")
     g.add_argument("--until", help="grades the latest commit before this date (ISO 8601)")

@@ -31,13 +31,13 @@ def test_watch_grades_and_saves(env):  # noqa: F811
                                     for j in service.jobs.values()))
         assert {j["status"] for j in service.jobs.values()} == {"done"}
         assert service.watch_once() == 0                    # no new pushes, nothing
-        gh.commit("grupo-test-lab-02-prueba-ana", {}, "2026-11-09T09:00:00Z")
+        gh.commit("grupo-test-lab-2-ana", {}, "2026-11-09T09:00:00Z")
         assert service.watch_once() == 1                    # only the one who pushed
         assert wait_for(lambda: service.queue.unfinished_tasks == 0)
     finally:
         service.shutdown()                                  # saves pending scores
     scores = json.loads(gh.read("classroom50", "grupo-test/scores.json"))
-    assert {e["owner"] for e in scores["assignments"]["lab-02-prueba"]["entries"]} == {"ana", "luis"}
+    assert {e["owner"] for e in scores["assignments"]["lab-2"]["entries"]} == {"ana", "luis"}
     assert len(gh.content_commits) == 1                     # a single commit for everything
 
 
@@ -63,7 +63,7 @@ def test_api_with_token(env):  # noqa: F811
         assert request("/health", token="")[0] == 200
         assert request("/jobs", token="other")[0] == 401
         assert request("/grade", {"classroom": "grupo-test"})[0] == 400
-        code, resp = request("/grade", {"classroom": "grupo-test", "assignment": "lab-02-prueba",
+        code, resp = request("/grade", {"classroom": "grupo-test", "assignment": "lab-2",
                                         "students": ["ana"]})
         assert code == 202 and len(resp["jobs"]) == 1
         ident = resp["jobs"][0]

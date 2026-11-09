@@ -32,6 +32,10 @@ The assignment is created in Classroom 50 with two options:
 - **Do not use the built-in autograder** (`no_autograder`). The student repository is then an exact
   copy of the template, without workflows, and pushes trigger nothing in Actions.
 
+An assignment created without the second option keeps the Classroom 50 autograder, so every push
+spends minutes even if this grader also grades it (the grader logs a warning). The pilot's
+`lab-02-prueba` was one of those; the examples here use `lab-2`, created with both options.
+
 The score the grader writes is the same one the web writes when a teacher enters a score by hand:
 an entry with `"override": true` in `scores.json`, modelled on the web's code
 (`web/src/domain/assignments/scoreOverride.ts`). That is why it shows up on the submissions page
@@ -92,10 +96,10 @@ The token expires. Write the date down and renew it before the semester starts.
 ### Batch: grade and exit
 
 ```bash
-grader grade -c grader.toml grupo-test/lab-02-prueba ana luis
-grader grade -c grader.toml grupo-test/lab-02-prueba --all
-grader grade -c grader.toml grupo-test/lab-02-prueba --all --until 2026-11-15T22:59:00Z
-grader grade -c grader.toml grupo-test/lab-02-prueba ana --no-publish   # just look
+grader grade -c grader.toml grupo-test/lab-2 ana luis
+grader grade -c grader.toml grupo-test/lab-2 --all
+grader grade -c grader.toml grupo-test/lab-2 --all --until 2026-11-15T22:59:00Z
+grader grade -c grader.toml grupo-test/lab-2 ana --no-publish   # just look
 ```
 
 - **`--until`** grades the latest commit before that date: what was submitted on time.
@@ -125,7 +129,7 @@ The API expects the `GRADER_API_TOKEN` token in the `Authorization: Bearer …` 
 | `POST /watch` | One watch round right now. |
 
 ```bash
-curl -H "Authorization: Bearer $GRADER_API_TOKEN" -d '{"classroom":"grupo-test","assignment":"lab-02-prueba","students":["ana"]}' http://127.0.0.1:8080/grade
+curl -H "Authorization: Bearer $GRADER_API_TOKEN" -d '{"classroom":"grupo-test","assignment":"lab-2","students":["ana"]}' http://127.0.0.1:8080/grade
 ```
 
 ### Tools for preparing assignments
