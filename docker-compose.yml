@@ -1,0 +1,112 @@
+# auto-grader: the API, PostgreSQL and the pieces that let the grader create sandbox containers.
+#
+#   cp .env.example .env              # and fill it in
+#   docker compose up -d --build      # API docs at http://localhost:8000/docs
+#
+# All the state lives in the `postgres_data` volume: stopping and starting resumes where it was,
+# and that volume plus .env is all another machine needs (see README, "Moving or backing up").
+name: auto-grader
+
+services:
+  grader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/prog-gitt-upm/auto-grader:latest
+    container_name: auto-grader
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://grader:${POSTGRES_PASSWORD}@postgres:5432/grader
+      DOCKER_HOST: tcp://docker-proxy:2375
+      SANDBOX_TYPE: docker
+      SANDBOX_IMAGE: grader-sandbox:3.12
+      GRADER_WORK_DIR: /var/lib/grader
+    ports:
+      - "${GRADER_BIND:-127.0.0.1}:${GRADER_PORT:-8000}:8000"
+    volumes:
+      # Template cache and temporary copies of submissions: disposable, rebuilt on demand.
+      - grader_work:/var/lib/grader
+    depends_on:
+      postgres:
+        condition: service_healthy
+      docker-proxy:
+        condition: service_started
+      sandbox:
+        condition: service_completed_successfully
+    networks:
+      - main_network
+      - docker_api
+    restart: unless-stopped
+    stop_grace_period: 60s   # time to finish and save pending scores
+
+  # Not a running service: it only builds the image the grading containers are created from.
+  sandbox:
+    build:
+      context: ./sandbox
+    image: grader-sandbox:3.12
+    entrypoint: ["true"]
+    network_mode: none
+    restart: "no"
+
+  # The grader never gets the Docker socket itself: this proxy only lets through what it needs
+  # (create, copy into, start, exec and remove containers; inspect images). Docker's socket is
+  # root-equivalent on the host, so this limits what a compromised grader could do.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: auto-grader-docker-proxy
+    environment:
+      CONTAINERS: 1
+      EXEC: 1
+      IMAGES: 1
+      POST: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - docker_api
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: auto-grader-postgres
+    environment:
+      POSTGRES_USER: grader
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: grader
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grader -d grader"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - main_network
+    restart: unless-stopped
+
+  # Optional web console for the database: docker compose --profile admin up -d
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: auto-grader-pgadmin
+    profiles: ["admin"]
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-change-me}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - main_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  grader_work:
+  pgadmin_data:
+
+networks:
+  main_network:
+    driver: bridge
+  # Only the grader and the proxy are on it, and it has no way out.
+  docker_api:
+    internal: true

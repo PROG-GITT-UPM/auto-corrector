@@ -1,0 +1,11 @@
+# Assignment configuration for the course grader.
+# Students must not change anything in this folder: the grader always uses the template's copy.
+
+[assignment]
+name = "Laboratorio 2 — Tipos de datos, variables y expresiones"
+python = "3.12"            # version used for grading (the container image)
+tests = "tests.json"       # relative to this folder; Classroom 50 test format
+
+# Files the grader ALWAYS takes from the template even if the student changes them
+# (input data, provided modules...). Patterns relative to the repository root.
+protected = []

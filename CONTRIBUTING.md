@@ -33,8 +33,8 @@ Two consequences that are easy to miss:
 
 ## The engine is shared
 
-`src/grader/engine.py` is copied into every assignment as `.grader/engine.py`, so that students run
-exactly the same code with `check.py`. It must be byte-for-byte identical everywhere.
+`code/src/modules/engine.py` is copied into every assignment as `.grader/engine.py`, so that
+students run exactly the same code with `check.py`. It must be byte-for-byte identical everywhere.
 
 - Change it only here, never in an assignment repository.
 - Keep it self-contained: standard library only, and Python 3.9 compatible (students may have an
@@ -43,36 +43,66 @@ exactly the same code with `check.py`. It must be byte-for-byte identical everyw
   assignment that is still open:
 
   ```bash
-  grader sync-engine ../template-graded-exercise ../prog-lab-2 ...
+  cp code/src/modules/engine.py ../template-graded-exercise/.grader/engine.py
+  cp code/src/modules/engine.py ../prog-lab-2/.grader/engine.py
   ```
 
-  `grader validate-assignment` fails if an assignment has a different engine.
 - Do not rename its public names (`load_tests`, `evaluate`, `local_runner`, `explain_difference`,
   `TestResult`…): the `check.py` of every assignment already accepted by students uses them, and
-  their copy is not updated when you sync.
+  their copy is not updated when you change it here.
 
 ## Code
 
-- Standard library only for the grader too. The server should only need Python and Docker.
+The layout follows the STRAST FastAPI template:
+
+| Folder | What goes there |
+|---|---|
+| `code/main.py` | The FastAPI app: routers, and the start-up and shutdown of the background service. |
+| `code/src/routers/` | One router per group of endpoints. Endpoint paths and tags are in `utilities/endpoints_tags.py`. |
+| `code/src/data_models/` | Pydantic models of requests and responses. Their descriptions and examples are the API docs: write them for someone trying the API in `/docs`. |
+| `code/src/modules/` | The grading logic: engine, submissions, reports, publishing scores, the background service. |
+| `code/src/providers/` | Access to the outside: PostgreSQL, the GitHub API and Docker. |
+| `code/src/config/` | Settings from environment variables. |
+| `code/src/utilities/` | Constants, endpoint names and API authentication. |
+
+- **All state goes in PostgreSQL**, never in files or memory: the service must resume where it
+  stopped, and moving the database volume must be enough to move the service. The work folder is a
+  disposable cache.
+- **Schema changes are new migrations.** Add an entry at the end of `MIGRATIONS` in
+  `providers/database.py`; never edit one that has been released.
+- **One process.** The background workers live in the API process, so the image runs a single
+  `fastapi` worker. Grading parallelism is `GRADER_WORKERS`.
+- **Endpoints are synchronous functions** (`def`, not `async def`): they call the database and
+  GitHub with blocking clients, and FastAPI runs them in its thread pool.
+- **Never run student code outside the sandbox.** `LocalSandbox` exists only for development and
+  tests, behind `SANDBOX_INSECURE=true`.
+- **Hidden tests never reach students.** The Release and `result.json` say whether a hidden test
+  passed, never its input, expected output or the student's output.
 - Classes whose name starts with `Test` but are not tests carry `__test__ = False`, so pytest does
   not try to collect them.
-- Never run student code outside the sandbox. `LocalSandbox` exists only for development and
-  tests, behind `insecure = true`.
 - Anything that writes to the `classroom50` repository must put `[skip ci]` in the commit message
   and batch writes, or it will spend Actions minutes on `publish-pages`.
 
 ## Tests
 
+The tests need a PostgreSQL server; they wipe the database they are given on every test, so use a
+throw-away one:
+
 ```bash
-pip install -e ".[dev]"
-pytest
-CLASSROOM50_SCHEMAS=~/classroom50/schemas pytest   # also validates against Classroom 50's schemas
+docker run -d --name grader-test-db -p 5433:5432 -e POSTGRES_PASSWORD=test postgres:16
+pip install -r requirements-dev.txt
+cd code
+TEST_DATABASE_URL=postgresql://postgres:test@localhost:5433/postgres pytest
+CLASSROOM50_SCHEMAS=~/classroom50/schemas TEST_DATABASE_URL=... pytest   # also checks the schemas
 ```
 
-All tests must pass before merging. They need neither network nor Docker.
+Without `TEST_DATABASE_URL`, only the engine tests run. All tests must pass before merging. They
+need neither network nor Docker: GitHub is faked (`tests/fake_github.py`) and student code runs
+with `LocalSandbox`. The Docker sandbox is not covered by the tests: check it on a real server.
 
-`tests/fixtures/lab_02/` holds a copy of the lab 2 template and its reference solution. The
-solution is why this repository must stay private.
+`tests/fixtures/lab_02/` holds a copy of the `prog-lab-2` template and its reference solution. The
+solution is why this repository must stay private. When `prog-lab-2` changes, copy its
+`.grader/tests.json`, `.grader/assignment.toml` and exercise files there.
 
 ## Commits
 
