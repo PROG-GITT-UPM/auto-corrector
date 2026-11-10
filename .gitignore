@@ -160,3 +160,6 @@ cython_debug/
 .idea/
 
 # Project ignores
+
+# Service data (scripts/setup.sh)
+/data/

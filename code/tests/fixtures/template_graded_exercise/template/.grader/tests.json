@@ -1,0 +1,45 @@
+[
+  {
+    "name": "Ejercicio 1 — Saludo · ejemplo 1",
+    "type": "io",
+    "run": "python exercise_01_greeting.py",
+    "input": "Ana\n",
+    "expected": "Hola, Ana. Bienvenida a PROG.",
+    "comparison": "included",
+    "timeout": 10,
+    "points": 1
+  },
+  {
+    "name": "Ejercicio 1 — Saludo · ejemplo 2",
+    "type": "io",
+    "run": "python exercise_01_greeting.py",
+    "input": "Luis\n",
+    "expected": "Hola, Luis\\. Bienvenida a PROG\\.$",
+    "comparison": "regex",
+    "timeout": 10,
+    "points": 1
+  },
+  {
+    "name": "Ejercicio 2 — Media de data/numbers.txt",
+    "type": "io",
+    "run": "python exercise_02_average.py",
+    "expected": "Media: 4.50",
+    "comparison": "exact",
+    "timeout": 10,
+    "points": 1
+  },
+  {
+    "name": "Ejercicio 3 — Temperatura · la función existe",
+    "type": "run",
+    "run": "python -c \"from exercise_03_temperature import celsius_to_fahrenheit\"",
+    "timeout": 10,
+    "points": 1
+  },
+  {
+    "name": "Ejercicio 3 — Temperatura · conversiones",
+    "type": "python",
+    "run": "python -m pytest -q .grader/test_exercise_03.py",
+    "timeout": 30,
+    "points": 3
+  }
+]

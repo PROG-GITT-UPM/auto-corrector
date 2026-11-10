@@ -23,8 +23,9 @@ DESCRIPTION = """
 Grades the course's Python assignments on our own servers and records the scores in
 Classroom 50, without GitHub Actions.
 
-1. Add an assignment with `PUT /assignments/{classroom}/{assignment}`.
-2. Grade on request with `POST /grade`, or turn on push watching with
+1. Bring in the assignments declared in Classroom 50 with `POST /assignments/sync`, or add one
+   by hand with `PUT /assignments/{classroom}/{assignment}`.
+2. Grade on request with `POST /grade`, or turn on push watching (off by default) with
    `PUT /assignments/{classroom}/{assignment}/watch` to grade every push.
 3. Follow the jobs with `GET /jobs`. Scores reach Classroom 50 in batches.
 

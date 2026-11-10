@@ -49,6 +49,7 @@ def fake_github():
         "schema": "classroom50/assignments/v1",
         "assignments": [
             {"slug": "lab-2", "name": "Lab 2", "mode": "individual",
+             "template": {"owner": ORG, "repo": "prog-lab-2", "branch": "main"},
              "autograder": "default", "no_autograder": True,
              "grading": {"mode": "manual", "max_points": 9}, "due": "2026-11-05T22:00:00Z"},
             {"slug": "lab-2-b", "name": "Another", "mode": "individual",

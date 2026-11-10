@@ -1,0 +1,39 @@
+{
+  // ─────────────────────────────────────────────────────────────────────────
+  // PROG · VS Code / Pylance settings for students
+  //
+  // This file makes VS Code CHECK the type hints you write.
+  // Without it, Pylance is "off" by default and type annotations are
+  // decorative: nobody warns you if you get a type wrong.
+  //
+  // Place it in the .vscode/ folder at the root of your project.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Type checking level.
+  //   "basic"    → catches the most common errors
+  //   "standard" → also checks argument and return types.
+  //                This is the course level FROM WEEK 1.
+  //   "strict"   → too strict for an introductory course; DO NOT use
+  "python.analysis.typeCheckingMode": "standard",
+
+  // Type mismatches are shown as ERRORS (red underline), not as mere
+  // warnings. In this course we always annotate and the type must match.
+
+  // DO NOT show automatically inferred types next to variables.
+  // We want YOU to write the type hints, not have them appear on their own.
+  "python.analysis.inlayHints.variableTypes": false,
+  "python.analysis.inlayHints.functionReturnTypes": false,
+
+  // Import auto-completion: suggests and adds the required `import`s.
+  "python.analysis.autoImportCompletions": true,
+
+  // Warn about unused variables and other common slips.
+  "python.analysis.diagnosticMode": "openFilesOnly",
+
+  // ─── Editor quality of life ───
+  "editor.rulers": [88],              // visual line-length guide
+  "editor.insertSpaces": true,        // spaces, not tabs
+  "editor.tabSize": 4,                // 4 spaces per level (Python standard)
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true
+}

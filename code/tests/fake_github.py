@@ -107,6 +107,14 @@ class FakeGitHub:
                 if not m:
                     return self._json(404, {"message": "Not Found"})
                 repo, rest = m.group(1), m.group(2) or ""
+                if rest == "/contents":
+                    # Root listing: one entry per top-level folder and file of the repository.
+                    names = {path.split("/", 1)[0]: "/" in path
+                             for (r, path) in gh.files if r == repo}
+                    if not names:
+                        return self._json(404, {"message": "Not Found"})
+                    return self._json(200, [{"name": n, "type": "dir" if is_dir else "file"}
+                                            for n, is_dir in sorted(names.items())])
                 if rest.startswith("/contents/"):
                     path = rest[len("/contents/"):]
                     if (repo, path) not in gh.files:

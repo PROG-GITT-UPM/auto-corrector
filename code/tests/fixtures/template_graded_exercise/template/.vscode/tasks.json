@@ -1,0 +1,16 @@
+{
+  // Terminal → Run Task… → "Comprobar mis ejercicios"
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Comprobar mis ejercicios",
+      "type": "process",
+      "command": "${command:python.interpreterPath}",
+      "args": ["check.py"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    }
+  ]
+}

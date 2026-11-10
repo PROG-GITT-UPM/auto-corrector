@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 # internal imports
 from ..data_models.api import (AssignmentIn, AssignmentOut, HiddenTestsIn, HiddenTestsOut,
-                               StudentOut, WatchIn, WatchOut)
+                               StudentOut, SyncItemOut, SyncRequest, WatchIn, WatchOut)
 from ..modules import engine
+from ..modules.assignments import AssignmentCheckError, check_assignment, sync
 from ..modules.grading import hidden_tests as parse_hidden, visible_tests
 from ..providers.database import Assignment
 from ..providers.github import GitHubError
@@ -41,6 +42,26 @@ def list_assignments(request: Request) -> list[AssignmentOut]:
     return [_out(a) for a in request.app.state.service.db.list_assignments()]
 
 
+@assignments_router.post(
+    "/sync", response_model=list[SyncItemOut],
+    summary="Sync the assignments with Classroom 50",
+    description="Reads the assignments declared in Classroom 50 and brings the service in line: "
+                "adds the gradable ones it does not have (individual, with a template and with "
+                "\"Do not use the built-in autograder\"), with watching off; updates those whose "
+                "template or branch changed, keeping their hidden tests and watch settings; and "
+                "reports the ones Classroom 50 no longer has, removing them only with "
+                "`remove_missing`. Use `dry_run` to see the changes first.")
+def sync_assignments(request: Request, body: SyncRequest) -> list[SyncItemOut]:
+    try:
+        items = sync(request.app.state.service.ctx, body.classroom, body.remove_missing,
+                     body.dry_run)
+    except AssignmentCheckError as exc:
+        raise HTTPException(404, str(exc)) from None
+    except GitHubError as exc:
+        raise HTTPException(502, f"GitHub: {exc.message}") from None
+    return [SyncItemOut(**vars(i)) for i in items]
+
+
 @assignments_router.get(ITEM, response_model=AssignmentOut, summary="Get an assignment")
 def get_assignment(request: Request, classroom: str, assignment: str) -> AssignmentOut:
     return _out(_get(request, classroom, assignment))
@@ -56,36 +77,12 @@ def get_assignment(request: Request, classroom: str, assignment: str) -> Assignm
 def put_assignment(request: Request, classroom: str, assignment: str,
                    body: AssignmentIn) -> AssignmentOut:
     service = request.app.state.service
-    ctx = service.ctx
-    warnings = []
-    try:
-        data = ctx.repos.classroom_assignment(classroom, assignment)
-    except GitHubError as exc:
-        raise HTTPException(422,
-                            f"Classroom 50 assignment not found: {exc.message}") from None
-    if data.get("mode", "individual") != "individual":
-        raise HTTPException(422,
-                            "only individual assignments can be graded for now")
-    if data.get("no_autograder") is not True:
-        warnings.append("the assignment does not have \"Do not use the built-in autograder\": "
-                        "every push spends Actions minutes on the Classroom 50 autograder")
-    if (data.get("grading") or {}).get("mode") not in (None, "manual"):
-        warnings.append("the assignment's grading mode is not \"manual\"")
     existing = service.db.get_assignment(classroom, assignment)
-    candidate = Assignment(classroom=classroom, slug=assignment, template=body.template,
-                           ref=body.ref,
-                           hidden_tests=existing.hidden_tests if existing else None)
     try:
-        template = ctx.repos.template(candidate)
-        visible = visible_tests(template.dir, candidate, template.settings)
-    except (GitHubError, FileNotFoundError, engine.TestFileError) as exc:
-        raise HTTPException(422,
-                            f"the template's tests could not be loaded: {exc}") from None
-    max_points = (data.get("grading") or {}).get("max_points")
-    total = sum(t.points for t in visible) + sum(t.points for t in parse_hidden(candidate))
-    if max_points is not None and max_points != total:
-        warnings.append(f"Classroom 50 expects {max_points} points but the tests add up to "
-                        f"{total}")
+        warnings = check_assignment(service.ctx, classroom, assignment, body.template, body.ref,
+                                    existing.hidden_tests if existing else None)
+    except AssignmentCheckError as exc:
+        raise HTTPException(422, str(exc)) from None
     saved = service.db.upsert_assignment(classroom, assignment, body.template, body.ref,
                                          body.publish_release, body.save_score)
     return _out(saved, warnings)

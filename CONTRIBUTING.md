@@ -100,9 +100,14 @@ Without `TEST_DATABASE_URL`, only the engine tests run. All tests must pass befo
 need neither network nor Docker: GitHub is faked (`tests/fake_github.py`) and student code runs
 with `LocalSandbox`. The Docker sandbox is not covered by the tests: check it on a real server.
 
-`tests/fixtures/lab_02/` holds a copy of the `prog-lab-2` template and its reference solution. The
-solution is why this repository must stay private. When `prog-lab-2` changes, copy its
-`.grader/tests.json`, `.grader/assignment.toml` and exercise files there.
+`tests/fixtures/` holds copies of two assignments with their reference solutions (which is why
+this repository must stay private):
+
+- `lab_02/`: the `prog-lab-2` template. When it changes, copy its `.grader/tests.json`,
+  `.grader/assignment.toml` and exercise files there.
+- `template_graded_exercise/`: the whole `template-graded-exercise` repository, which is also the
+  smoke-test assignment. When it changes, copy it again:
+  `git -C ../template-graded-exercise archive HEAD | tar -x -C code/tests/fixtures/template_graded_exercise/template`.
 
 ## Commits
 

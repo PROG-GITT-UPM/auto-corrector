@@ -3,8 +3,9 @@
 #   cp .env.example .env              # and fill it in
 #   docker compose up -d --build      # API docs at http://localhost:8000/docs
 #
-# All the state lives in the `postgres_data` volume: stopping and starting resumes where it was,
-# and that volume plus .env is all another machine needs (see README, "Moving or backing up").
+# All the state lives in PostgreSQL, whose data folder is POSTGRES_DATA_DIR on the host: stopping
+# and starting resumes where it was. Back it up with scripts/backup.sh (see README, "Stopping,
+# moving and backing up"). Host folders are set in .env; scripts/setup.sh creates them.
 name: auto-grader
 
 services:
@@ -23,9 +24,8 @@ services:
       GRADER_WORK_DIR: /var/lib/grader
     ports:
       - "${GRADER_BIND:-127.0.0.1}:${GRADER_PORT:-8000}:8000"
-    volumes:
-      # Template cache and temporary copies of submissions: disposable, rebuilt on demand.
-      - grader_work:/var/lib/grader
+    # No volume: /var/lib/grader only holds a template cache and temporary copies of
+    # submissions, rebuilt on demand.
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,7 +73,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: grader
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_DIR:-./data/postgres}:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U grader -d grader"]
       interval: 5s
@@ -94,15 +94,10 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-change-me}
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - ${PGADMIN_DATA_DIR:-./data/pgadmin}:/var/lib/pgadmin   # owned by uid 5050 (setup.sh)
     networks:
       - main_network
     restart: unless-stopped
-
-volumes:
-  postgres_data:
-  grader_work:
-  pgadmin_data:
 
 networks:
   main_network:

@@ -30,7 +30,8 @@ Requires a Linux machine with Docker and the Compose plugin.
 
 ```bash
 git clone https://github.com/PROG-GITT-UPM/auto-grader.git && cd auto-grader
-cp .env.example .env          # fill in the GitHub token, the API token and the passwords
+scripts/setup.sh              # creates .env and the data folders
+nano .env                     # fill in the GitHub token, the API token and the passwords
 docker compose up -d --build
 ```
 
@@ -43,7 +44,7 @@ What starts:
 | Service | What it is |
 |---|---|
 | `grader` | The API and the background workers (port 8000, on 127.0.0.1 by default: see `GRADER_BIND`). |
-| `postgres` | PostgreSQL 16 with all the state, in the `postgres_data` volume. |
+| `postgres` | PostgreSQL 16 with all the state, in the host folder `POSTGRES_DATA_DIR` (default `./data/postgres`). |
 | `docker-proxy` | Lets the grader create sandbox containers without giving it the Docker socket. |
 | `sandbox` | Not a running service: it builds the `grader-sandbox:3.12` image that grading containers are created from. |
 | `pgadmin` | Optional database console: `docker compose --profile admin up -d`, at `http://localhost:8080`. |
@@ -80,6 +81,28 @@ spends minutes even if this service also grades it.
 
 ### 2. Add it to the service
 
+The simplest way is to sync with Classroom 50:
+
+```
+POST /assignments/sync      {}                                   all classrooms
+POST /assignments/sync      {"classroom": "grupo-test"}          one classroom
+POST /assignments/sync      {"dry_run": true}                    only report what would change
+```
+
+It reads the assignments declared in Classroom 50 and:
+
+- **adds** the gradable ones the service does not have: individual, with a template, and created
+  with "Do not use the built-in autograder". Watching starts off;
+- **updates** those whose template or branch changed, keeping their hidden tests and watch
+  settings;
+- **skips** the ones it cannot grade, saying why (for example, they still use the Classroom 50
+  autograder);
+- **reports as `missing`** the ones the service has but Classroom 50 no longer has. They are only
+  removed with `"remove_missing": true`, because removing an assignment also removes its hidden
+  tests.
+
+An assignment can also be added or changed by hand:
+
 ```
 PUT /assignments/{classroom}/{assignment}       {"template": "PROG-GITT-UPM/prog-lab-2"}
 ```
@@ -105,7 +128,7 @@ POST /grade      {"classroom": "grupo-test", "assignment": "lab-2",
 - **Repeated requests:** a commit already graded with the same tests is not graded again (the job
   ends as `already graded`), unless `force` is set. If the tests change, it is graded again.
 
-Or on every push, turning watching on:
+Or on every push, turning watching on (it is off by default for every assignment):
 
 ```
 PUT /assignments/{classroom}/{assignment}/watch     {"enabled": true, "interval_seconds": 120}
@@ -155,30 +178,35 @@ Classroom 50 code of 5 November 2026 (commit `b6d81a4`). If Classroom 50 changes
 ## Stopping, moving and backing up
 
 All the state is in PostgreSQL: the assignments, their hidden tests and watch settings, the queue,
-the grading history and the scores not yet written to Classroom 50.
+the grading history and the scores not yet written to Classroom 50. Its data lives in the host
+folder `POSTGRES_DATA_DIR`; the other folders (`PGADMIN_DATA_DIR`, `BACKUP_DIR`) are also set in
+`.env`. The grader's own work folder is a cache inside its container and is not kept.
 
 - **Stopping and starting** (`docker compose down` / `up -d`, or a reboot) resumes where it was:
   jobs left half-way are queued again, pending scores are written on the next round, and watching
-  continues from the last push it saw. `docker compose down -v` deletes the volumes: do not use it
-  unless you want to start from scratch.
-- **Moving to another machine:** copy the repository, the `.env` file and the `postgres_data`
-  volume. The `.env` file holds the secrets and is not in any volume, on purpose. The
-  `grader_work` volume is a cache and does not need to be copied.
-- **Backups:** a dump is safer than copying the volume (it does not depend on the PostgreSQL
-  version):
+  continues from the last push it saw.
+- **Backups:**
 
   ```bash
-  docker compose exec -T postgres pg_dump -U grader grader > grader-$(date +%F).sql
+  scripts/backup.sh                # dump into BACKUP_DIR, keeping the newest BACKUP_KEEP
+  scripts/backup.sh --with-env     # also a copy of .env (the secrets)
   ```
 
-  To restore into a fresh deployment, start only the database, load the dump, then start the
-  rest (if the grader starts first it creates empty tables and the dump clashes with them):
+  It can run while the service is working. To run it every night, add to the crontab of a user
+  that can use Docker: `0 3 * * * /path/to/auto-grader/scripts/backup.sh`. Dumps contain the hidden
+  tests: keep them as private as the repository.
+- **Restoring** replaces the current state with a dump. It stops the grader, restores and starts it
+  again:
 
   ```bash
-  docker compose up -d postgres
-  docker compose exec -T postgres psql -U grader grader < grader-2026-11-10.sql
-  docker compose up -d
+  scripts/restore.sh data/backups/grader-20261110-030000Z.dump
   ```
+
+- **Moving to another machine:** clone the repository, copy `.env`, run `scripts/setup.sh`, start
+  with `docker compose up -d --build` and restore the latest dump with `scripts/restore.sh`.
+  Copying the `POSTGRES_DATA_DIR` folder (with the service stopped) also works, but only to the
+  same PostgreSQL major version; a dump works across versions. `.env` holds the secrets and is in
+  no dump unless you ask for it with `--with-env`.
 
 ## Security
 

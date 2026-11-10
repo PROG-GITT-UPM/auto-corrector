@@ -25,7 +25,9 @@ class AssignmentIn(BaseModel):
 
 
 class WatchIn(BaseModel):
-    enabled: bool = Field(description="Grade every push automatically.")
+    enabled: bool = Field(False, description="Grade every push automatically. Off by default: "
+                                             "submissions are only graded when asked through "
+                                             "`POST /grade`.")
     interval_seconds: int = Field(120, ge=30, le=86400,
                                   description="How often to check for new pushes.")
 
@@ -67,6 +69,28 @@ class HiddenTestsIn(BaseModel):
 class HiddenTestsOut(BaseModel):
     tests: list[dict[str, Any]]
     points: int = Field(description="Total points of the hidden tests.")
+
+
+class SyncRequest(BaseModel):
+    classroom: Optional[str] = Field(None, description="Only this classroom. Leave it out to "
+                                                       "sync every classroom.",
+                                     examples=["grupo-test"])
+    remove_missing: bool = Field(False, description="Remove the assignments that Classroom 50 no "
+                                                    "longer has or that are no longer gradable. "
+                                                    "Their hidden tests are removed with them.")
+    dry_run: bool = Field(False, description="Only report what would change.")
+
+
+class SyncItemOut(BaseModel):
+    classroom: str
+    assignment: str
+    action: Literal["added", "updated", "unchanged", "skipped", "missing", "removed"] = Field(
+        description="`skipped`: declared in Classroom 50 but not gradable here (`reason` says "
+                    "why). `missing`: configured here but not gradable in Classroom 50 any more; "
+                    "kept unless `remove_missing`.")
+    reason: str = ""
+    template: Optional[str] = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class StudentOut(BaseModel):
