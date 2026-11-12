@@ -182,9 +182,17 @@ the grading history and the scores not yet written to Classroom 50. Its data liv
 folder `POSTGRES_DATA_DIR`; the other folders (`PGADMIN_DATA_DIR`, `BACKUP_DIR`) are also set in
 `.env`. The grader's own work folder is a cache inside its container and is not kept.
 
-- **Stopping and starting** (`docker compose down` / `up -d`, or a reboot) resumes where it was:
-  jobs left half-way are queued again, pending scores are written on the next round, and watching
-  continues from the last push it saw.
+- **Stopping and starting** resumes where it was: jobs left half-way are queued again, pending
+  scores are written on the next round, and watching continues from the last push it saw.
+
+  ```bash
+  scripts/stop.sh              # stop (scripts/stop.sh --backup makes a backup first)
+  docker compose up -d         # start again
+  ```
+
+  `stop.sh` stops the grader first, so it can write the pending scores while the database is still
+  up, and removes any grading container left half-way. A reboot also works: the containers start
+  again on their own.
 - **Backups:**
 
   ```bash
@@ -207,6 +215,20 @@ folder `POSTGRES_DATA_DIR`; the other folders (`PGADMIN_DATA_DIR`, `BACKUP_DIR`)
   Copying the `POSTGRES_DATA_DIR` folder (with the service stopped) also works, but only to the
   same PostgreSQL major version; a dump works across versions. `.env` holds the secrets and is in
   no dump unless you ask for it with `--with-env`.
+
+## Removing the service
+
+```bash
+scripts/destroy.sh             # final backup first; keeps BACKUP_DIR and .env
+scripts/destroy.sh --no-backup # no final backup; keeps BACKUP_DIR and .env
+scripts/destroy.sh --purge     # removes everything, backups and .env included
+```
+
+It removes the containers, the networks, the grader and sandbox images and the data folders
+(`POSTGRES_DATA_DIR`, `PGADMIN_DATA_DIR`), after asking you to type `delete`. It needs `sudo` for
+the data folders, which belong to the containers' users. Nothing in GitHub is touched: the scores
+already in Classroom 50 and the Releases in the student repositories stay. To install it again:
+`scripts/setup.sh && docker compose up -d --build`, then `scripts/restore.sh` with the last backup.
 
 ## Security
 

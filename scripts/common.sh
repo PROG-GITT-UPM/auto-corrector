@@ -35,3 +35,21 @@ wait_for_postgres() {
     echo "PostgreSQL did not become ready" >&2
     return 1
 }
+
+# Grading containers left by a grader stopped half-way. Compose does not manage them, so
+# `docker compose down` leaves them running; the grader removes them on start, these scripts on stop.
+remove_sandbox_containers() {
+    local ids
+    ids="$(docker ps --all --quiet --filter label=grader.sandbox=1)"
+    if [[ -n "$ids" ]]; then
+        # shellcheck disable=SC2086
+        docker rm --force --volumes $ids >/dev/null
+        echo "Removed $(wc -w <<<"$ids") leftover grading container(s)."
+    fi
+}
+
+# Runs a command as root (sudo when not already root): the data folders belong to the
+# containers' users (PostgreSQL uid 999, pgAdmin uid 5050).
+as_root() {
+    if [[ $EUID -eq 0 ]]; then "$@"; else sudo "$@"; fi
+}

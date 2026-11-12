@@ -17,6 +17,11 @@ mkdir -p "$backup_dir"
 chmod 700 "$backup_dir"
 
 stamp="$(date -u +%Y%m%d-%H%M%SZ)"
+# Two backups in the same second (e.g. stop.sh --backup then destroy.sh) must not overwrite.
+n=1
+while [[ -e "$backup_dir/grader-$stamp.dump" ]]; do
+    stamp="$(date -u +%Y%m%d-%H%M%SZ)-$((n++))"
+done
 file="$backup_dir/grader-$stamp.dump"
 # Custom format: compressed, and restorable with pg_restore --clean onto an existing database.
 compose exec -T postgres pg_dump -U grader -d grader --format=custom > "$file.partial"
